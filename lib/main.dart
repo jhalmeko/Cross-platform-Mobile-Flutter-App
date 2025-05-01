@@ -10,19 +10,22 @@ import 'package:moviematch/views/generator_page.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/cupertino.dart';
 
+// Sovelluksen pääfunktio, joka alustaa ympäristömuuttujat ja käynnistää sovelluksen.
 Future<void> main() async {
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: ".env"); // Ladataan ympäristömuuttujat .env-tiedostosta.
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => MyAppState()),
-        ChangeNotifierProvider(create: (_) => MovieMatchProvider()),
+        ChangeNotifierProvider(create: (_) => MyAppState()), // Sovelluksen tila.
+        ChangeNotifierProvider(create: (_) => MovieMatchProvider()), // MovieMatch-tila.
       ],
-      child: MyApp(),
+      child: MyApp(), // Käynnistetään sovellus.
     ),
   );
 }
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>(); // Navigaattorin avain.
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -30,24 +33,32 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'MovieMatch',
+      navigatorKey: navigatorKey, // Navigaattorin avain.
+      title: 'MovieMatch', // Sovelluksen nimi.
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color.fromARGB(255, 99, 0, 156),
+          seedColor: const Color.fromARGB(255, 99, 0, 156), // Sovelluksen teemaväri.
         ),
       ),
       routerConfig: GoRouter(
         routes: [
+          // Reitit eri sivuille.
           GoRoute(
             path: "/",
             builder: (context, state) {
-              return MyHomePage(GeneratorPage());
+              return MyHomePage(GeneratorPage()); // Etusivu.
             },
           ),
           GoRoute(
             path: "/favorites",
             builder: (context, state) {
-              return MyHomePage(FavoritesPage());
+              return MyHomePage(FavoritesPage()); // Suosikkisivu.
+            },
+          ),
+          GoRoute(
+            path: "/movie-match",
+            builder: (context, state) {
+              return MyHomePage(MovieMatchClient()); // MovieMatch-sivu.
             },
           ),
         ],
@@ -57,8 +68,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  // class _MyHomePageState extends State<MyHomePage>... has now widget.child
-  final Widget? child;
+  final Widget? child; // Näytettävä lapsi-widget.
 
   const MyHomePage(this.child);
 
@@ -69,38 +79,68 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
-    if (Platform.isAndroid) {
-      return Scaffold(
-        body: widget.child,
-        bottomNavigationBar: BottomNavigationBar(
-          items: [
-            BottomNavigationBarItem(
-              label: 'Home',
-              icon: GestureDetector(
-                child: Icon(Icons.home),
-                onTap: () => context.go("/"),
-              ),
-            ),
-            BottomNavigationBarItem(
-              label: "Favorites",
-              icon: GestureDetector(
-                child: Icon(Icons.favorite),
-                onTap: () => context.go("/favorites"),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+    return Consumer<MyAppState>(
+      builder: (context, appState, child) {
+        // Näytetään modaalidialogi, jos yhteensopivuus löytyy.
+        if (appState.matchData != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            showDialog(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  title: Text('Match Found!'), // Otsikko.
+                  content: Text('You have a match: ${appState.matchData}'), // Sisältö.
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        appState.clearNotification(); // Tyhjennetään ilmoitus.
+                        Navigator.of(context).pop(); // Suljetaan dialogi.
+                      },
+                      child: Text('OK'),
+                    ),
+                  ],
+                );
+              },
+            );
+          });
+        }
 
-    if (Platform.isIOS) {
-      return CupertinoPageScaffold(
-        navigationBar: CupertinoNavigationBar.large(largeTitle: Text("Test")),
-        child: Text("test"),
-      );
-    }
+        // Android-käyttöliittymä.
+        if (Platform.isAndroid) {
+          return Scaffold(
+            body: widget.child, // Näytettävä sisältö.
+            bottomNavigationBar: BottomNavigationBar(
+              items: [
+                BottomNavigationBarItem(
+                  label: 'Home',
+                  icon: GestureDetector(
+                    child: Icon(Icons.home),
+                    onTap: () => context.go("/"), // Navigointi etusivulle.
+                  ),
+                ),
+                BottomNavigationBarItem(
+                  label: "Favorites",
+                  icon: GestureDetector(
+                    child: Icon(Icons.favorite),
+                    onTap: () => context.go("/favorites"), // Navigointi suosikkisivulle.
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
 
-    return Container();
+        // iOS-käyttöliittymä.
+        if (Platform.isIOS) {
+          return CupertinoPageScaffold(
+            navigationBar: CupertinoNavigationBar.large(largeTitle: Text("Test")), // iOS-tyylinen navigaatiopalkki.
+            child: Text("test"), // Näytettävä sisältö.
+          );
+        }
+
+        return Container(); // Tyhjä näkymä, jos alusta ei ole Android tai iOS.
+      },
+    );
   }
 }
 
@@ -117,30 +157,30 @@ class CustomNavigationRail extends StatelessWidget {
           children: [
             SafeArea(
               child: NavigationRail(
-                extended: constraints.maxWidth >= 600,
+                extended: constraints.maxWidth >= 600, // Laajennettu tila, jos leveys on suuri.
                 destinations: [
                   NavigationRailDestination(
                     icon: GestureDetector(
                       child: Icon(Icons.home),
-                      onTap: () => context.go("/"),
+                      onTap: () => context.go("/"), // Navigointi etusivulle.
                     ),
                     label: Text('Home'),
                   ),
                   NavigationRailDestination(
                     icon: GestureDetector(
                       child: Icon(Icons.favorite),
-                      onTap: () => context.go("/favorites"),
+                      onTap: () => context.go("/favorites"), // Navigointi suosikkisivulle.
                     ),
                     label: Text('Favorites'),
                   ),
                 ],
-                selectedIndex: null,
+                selectedIndex: null, // Valittua indeksiä ei ole määritelty.
               ),
             ),
             Expanded(
               child: Container(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                child: widget.child,
+                color: Theme.of(context).colorScheme.primaryContainer, // Taustaväri.
+                child: widget.child, // Näytettävä sisältö.
               ),
             ),
           ],
@@ -153,23 +193,23 @@ class CustomNavigationRail extends StatelessWidget {
 class BigCard extends StatelessWidget {
   const BigCard({super.key, required this.pair});
 
-  final WordPair pair;
+  final WordPair pair; // Näytettävä sanapari.
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final style = theme.textTheme.displayMedium!.copyWith(
-      color: theme.colorScheme.onPrimary,
+      color: theme.colorScheme.onPrimary, // Tekstin väri.
     );
 
     return Card(
-      color: theme.colorScheme.primary,
+      color: theme.colorScheme.primary, // Kortin väri.
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Text(
-          pair.asLowerCase,
+          pair.asLowerCase, // Sanapari pienillä kirjaimilla.
           style: style,
-          semanticsLabel: "${pair.first} ${pair.second}",
+          semanticsLabel: "${pair.first} ${pair.second}", // Semanttinen tunniste.
         ),
       ),
     );
@@ -179,10 +219,10 @@ class BigCard extends StatelessWidget {
 class FavoritesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
+    var appState = context.watch<MyAppState>(); // Haetaan sovelluksen tila.
 
     if (appState.favorites.isEmpty) {
-      return Center(child: Text('No favorites yet.'));
+      return Center(child: Text('No favorites yet.')); // Näytetään viesti, jos suosikkeja ei ole.
     }
 
     return ListView(
@@ -191,13 +231,13 @@ class FavoritesPage extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           child: Text(
             'You have '
-            '${appState.favorites.length} favorites:',
+            '${appState.favorites.length} favorites:', // Suosikkien määrä.
           ),
         ),
         for (var pair in appState.favorites)
           ListTile(
-            leading: Icon(Icons.favorite),
-            title: Text(pair.asLowerCase),
+            leading: Icon(Icons.favorite), // Suosikkikuvake.
+            title: Text(pair.asLowerCase), // Suosikin nimi.
           ),
       ],
     );

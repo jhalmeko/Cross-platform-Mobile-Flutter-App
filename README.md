@@ -7,7 +7,7 @@ protoc --dart_out=grpc:lib/generated -Iprotos protos/moviematch.proto
 
 ## Getting Started
 
-Clone and start server: https://github.com/MatiasHiltunen/moviematch_server
+Clone and start server: https://github.com/jhalmeko/Cross-platform-Mobile-Flutter-App-Server
 
 - After server is running, you can start the app, for example with flutter run
 

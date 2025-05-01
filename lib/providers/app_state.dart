@@ -6,92 +6,80 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:moviematch/models/movie.dart';
 
+// Sovelluksen tila, joka hallitsee elokuvia, suosikkeja ja muita tietoja.
 class MyAppState extends ChangeNotifier {
-  List<Movie> movies = [];
+  List<Movie> movies = []; // Lista elokuvista.
+  var current = WordPair.random(); // Nykyinen satunnainen sanapari.
+  String currentTitle = "Loading..."; // Nykyinen otsikko (esim. elokuvan nimi).
+  late final String readAccessKey; // TMDB:n lukuoikeusavain.
 
-  var current = WordPair.random();
-  String currentTitle = "Loading...";
-  late final String readAccessKey;
-
+  // Konstruktori, joka alustaa sovelluksen tilan.
   MyAppState() {
+    // Haetaan TMDB:n lukuoikeusavain ympäristömuuttujista.
     String? key = dotenv.env["TMDB_READ_ACCESS_KEY"];
 
     if (key == null) {
+      // Jos avainta ei löydy, heitetään poikkeus.
       throw Exception(
         "No read access key found in app_state init, does .env exist?",
       );
+
+      String? matchData; // Yhteensopivuusdata.
+
+      // Ilmoittaa, kun yhteensopivuus löytyy.
+      void notifyMatch(String data) {
+        matchData = data;
+        notifyListeners(); // Päivittää kuuntelijat.
+      }
+
+      // Tyhjentää yhteensopivuusilmoituksen.
+      void clearNotification() {
+        matchData = null;
+        notifyListeners(); // Päivittää kuuntelijat.
+      }
     }
 
-    readAccessKey = key;
+    readAccessKey = key; // Tallennetaan lukuoikeusavain.
   }
 
+  // Hakee seuraavan satunnaisen sanaparin.
   void getNext() {
-    current = WordPair.random();
-    notifyListeners();
+    current = WordPair.random(); // Päivitetään satunnainen sanapari.
+    notifyListeners(); // Päivitetään kuuntelijat.
   }
 
-  var favorites = <WordPair>[];
+  var favorites = <WordPair>[]; // Lista suosikeista.
 
+  // Lisää tai poistaa nykyisen sanaparin suosikeista.
   void toggleFavorite() {
     if (favorites.contains(current)) {
-      favorites.remove(current);
+      favorites.remove(current); // Poistetaan suosikeista, jos se on jo siellä.
     } else {
-      favorites.add(current);
+      favorites.add(current); // Lisätään suosikkeihin, jos sitä ei ole.
     }
-    notifyListeners();
+    notifyListeners(); // Päivitetään kuuntelijat.
   }
 
-  // Add import to top of the file: import 'package:http/http.dart' as http;
+  // Hakee suositut elokuvat TMDB:n API:sta.
   Future<List<Movie>> getPopularMovies() async {
-    final Uri url = Uri.parse("https://api.themoviedb.org/3/movie/popular");
+    final Uri url = Uri.parse("https://api.themoviedb.org/3/movie/popular"); // API:n URL.
 
+    // Lähetetään HTTP GET -pyyntö API:lle.
     var response = await http.get(
       url,
       headers: {
-        "Authorization": "Bearer $readAccessKey",
+        "Authorization": "Bearer $readAccessKey", // Lukuoikeusavain.
         "Accept": "application/json",
         "Content-Type": "application/json",
       },
     );
 
+    // Puretaan API:n vastaus JSON-muotoon.
     var data = jsonDecode(response.body) as Map<String, dynamic>;
 
-    List moviesJson = data["results"];
+    List moviesJson = data["results"]; // Haetaan elokuvat JSON:sta.
 
+    // Muutetaan JSON-data Movie-olioiksi ja palautetaan lista.
     return moviesJson.map((movieJson) => Movie.fromJson(movieJson)).toList();
-
-    /* List<String> titles =
-        movies.map((movie) {
-          return movie["original_title"] as String;
-        }).toList(); */
-
-    /* currentTitle = titles.first; */
-    /* notifyListeners(); */
   }
-
-  /* 
-  {
-  "page": 1,
-  "results": [
-    {
-      "adult": false,
-      "backdrop_path": "/9nhjGaFLKtddDPtPaX5EmKqsWdH.jpg",
-      "genre_ids": [
-        10749,
-        878,
-        53
-      ],
-      "id": 950396,
-      "original_language": "en",
-      "original_title": "The Gorge",
-      "overview": "Two highly trained operatives grow close from a distance after being sent to guard opposite sides of a mysterious gorge. When an evil below emerges, they must work together to survive what lies within.",
-      "popularity": 2462.807,
-      "poster_path": "/7iMBZzVZtG0oBug4TfqDb9ZxAOa.jpg",
-      "release_date": "2025-02-13",
-      "title": "The Gorge",
-      "video": false,
-      "vote_average": 7.83,
-      "vote_count": 1365
-    },
-   */
 }
